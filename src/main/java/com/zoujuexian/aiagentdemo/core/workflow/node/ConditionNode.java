@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.workflow.node;
+package com.zoujuexian.aiagentdemo.core.workflow.node;
 
 import com.zoujuexian.aiagentdemo.core.workflow.WorkflowNode;
 import com.zoujuexian.aiagentdemo.core.workflow.WorkflowState;
@@ -7,6 +7,8 @@ import org.springframework.expression.EvaluationContext;
 import org.springframework.expression.Expression;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
+
+import java.util.Map;
 
 public class ConditionNode implements WorkflowNode {
 

@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.agent;
+package com.zoujuexian.aiagentdemo.core.agent;
 
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;

@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.trace;
+package com.zoujuexian.aiagentdemo.core.trace;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

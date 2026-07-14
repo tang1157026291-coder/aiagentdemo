@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.data;
+package com.zoujuexian.aiagentdemo.core.data;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

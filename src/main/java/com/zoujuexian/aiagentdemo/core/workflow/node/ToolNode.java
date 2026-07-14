@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.workflow.node;
+package com.zoujuexian.aiagentdemo.core.workflow.node;
 
 import com.zoujuexian.aiagentdemo.core.workflow.WorkflowNode;
 import com.zoujuexian.aiagentdemo.core.workflow.WorkflowState;

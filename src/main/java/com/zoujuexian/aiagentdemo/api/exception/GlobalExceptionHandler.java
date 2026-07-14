@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.api.exception;
+package com.zoujuexian.aiagentdemo.api.exception;
 
 import com.zoujuexian.aiagentdemo.api.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;

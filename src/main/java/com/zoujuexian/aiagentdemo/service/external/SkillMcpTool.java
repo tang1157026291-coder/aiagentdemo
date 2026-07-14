@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.service.external;
+package com.zoujuexian.aiagentdemo.service.external;
 
 import com.zoujuexian.aiagentdemo.service.skill.SkillManager;
 import com.zoujuexian.aiagentdemo.service.skill.SkillManager.SkillDefinition;

@@ -1,5 +1,7 @@
 package com.zoujuexian.aiagentdemo.api.controller.dto;
 
+import java.util.Map;
+
 /**
  * 对话响应
  */
@@ -8,11 +10,20 @@ public class ChatResponse {
     private boolean success;
     private String reply;
     private String error;
+    private Map<String, String> data;
 
     public static ChatResponse ok(String reply) {
         ChatResponse response = new ChatResponse();
         response.success = true;
         response.reply = reply;
+        return response;
+    }
+
+    public static ChatResponse ok(String reply, Map<String, String> data) {
+        ChatResponse response = new ChatResponse();
+        response.success = true;
+        response.reply = reply;
+        response.data = data;
         return response;
     }
 
@@ -45,5 +56,13 @@ public class ChatResponse {
 
     public void setError(String error) {
         this.error = error;
+    }
+
+    public Map<String, String> getData() {
+        return data;
+    }
+
+    public void setData(Map<String, String> data) {
+        this.data = data;
     }
 }

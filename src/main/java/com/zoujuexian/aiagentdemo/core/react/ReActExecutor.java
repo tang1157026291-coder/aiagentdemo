@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.react;
+package com.zoujuexian.aiagentdemo.core.react;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;

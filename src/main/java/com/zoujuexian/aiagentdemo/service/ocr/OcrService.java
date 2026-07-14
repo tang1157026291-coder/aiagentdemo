@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.service.ocr;
+package com.zoujuexian.aiagentdemo.service.ocr;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

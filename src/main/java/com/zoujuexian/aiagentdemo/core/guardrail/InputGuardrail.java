@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.guardrail;
+package com.zoujuexian.aiagentdemo.core.guardrail;
 
 import com.zoujuexian.aiagentdemo.api.exception.GuardrailException;
 import org.slf4j.Logger;

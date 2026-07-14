@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.agent;
+package com.zoujuexian.aiagentdemo.core.agent;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;

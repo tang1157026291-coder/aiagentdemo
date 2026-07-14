@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.config;
+package com.zoujuexian.aiagentdemo.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;

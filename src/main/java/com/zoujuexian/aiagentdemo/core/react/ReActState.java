@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.react;
+package com.zoujuexian.aiagentdemo.core.react;
 
 import java.util.ArrayList;
 import java.util.List;

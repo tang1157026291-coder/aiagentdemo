@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.react;
+package com.zoujuexian.aiagentdemo.core.react;
 
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.stereotype.Component;

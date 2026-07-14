@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.api.controller;
+package com.zoujuexian.aiagentdemo.api.controller;
 
 import com.zoujuexian.aiagentdemo.api.controller.dto.ChatResponse;
 import com.zoujuexian.aiagentdemo.core.debug.DebugService;

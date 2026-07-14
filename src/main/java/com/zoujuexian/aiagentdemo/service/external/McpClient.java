@@ -1,7 +1,7 @@
 package com.zoujuexian.aiagentdemo.service.external;
 
-import com.alibaba.fastjson2.JSON;
-import com.alibaba.fastjson2.JSONWriter;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -339,7 +339,7 @@ public class McpClient {
                 if (parentDir != null && !Files.exists(parentDir)) {
                     Files.createDirectories(parentDir);
                 }
-                String content = JSON.toJSONString(urls, JSONWriter.Feature.PrettyFormat);
+                String content = JSON.toJSONString(urls, SerializerFeature.PrettyFormat);
                 Files.writeString(storePath, content, StandardCharsets.UTF_8);
             } catch (IOException exception) {
                 System.err.println("[McpServerStore] 写入持久化文件失败: " + exception.getMessage());

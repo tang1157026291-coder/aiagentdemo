@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.guardrail;
+package com.zoujuexian.aiagentdemo.core.guardrail;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
