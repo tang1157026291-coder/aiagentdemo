@@ -1,0 +1,34 @@
+﻿package com.zoujuexian.aiagentdemo.core.workflow.node;
+
+import com.zoujuexian.aiagentdemo.core.workflow.WorkflowNode;
+import com.zoujuexian.aiagentdemo.core.workflow.WorkflowState;
+import org.springframework.ai.chat.client.ChatClient;
+
+public class EndNode implements WorkflowNode {
+
+    private final String id;
+
+    public EndNode(String id) {
+        this.id = id;
+    }
+
+    @Override
+    public String getId() {
+        return id;
+    }
+
+    @Override
+    public String getType() {
+        return "END";
+    }
+
+    @Override
+    public WorkflowState execute(WorkflowState state, ChatClient chatClient) {
+        return state;
+    }
+
+    @Override
+    public boolean isTerminal() {
+        return true;
+    }
+}
