@@ -1,6 +1,6 @@
-﻿package com.zoujuexian.aiagentdemo.service.external;
+package com.zoujuexian.aiagentdemo.service.external;
 
-import com.zoujuexian.aiagentdemo.service.extrenal.McpClient;
+import com.zoujuexian.aiagentdemo.service.external.McpClient;
 import jakarta.annotation.Resource;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;

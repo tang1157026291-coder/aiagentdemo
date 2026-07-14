@@ -1,7 +1,7 @@
-package com.zoujuexian.aiagentdemo.service.extrenal;
+package com.zoujuexian.aiagentdemo.service.external;
 
-import com.alibaba.fastjson.JSON;
-import com.alibaba.fastjson.serializer.SerializerFeature;
+import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONWriter;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
@@ -24,6 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * MCP Client 连接器
  * <p>
@@ -33,13 +37,23 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class McpClient {
 
+    private static final Logger logger = LoggerFactory.getLogger(McpClient.class);
+
     private final Map<String, McpSyncClient> clientsByUrl = new ConcurrentHashMap<>();
     private final Map<String, McpServerInfo> serverInfoByUrl = new ConcurrentHashMap<>();
     private final Map<String, List<ToolCallback>> toolCallbacksByUrl = new ConcurrentHashMap<>();
     private final ServerStore store;
 
     public McpClient() {
-        this.store = new ServerStore("src/main/resources/data/mcp-servers.json");
+        // 使用用户目录存储，确保打包为 JAR 后也能正常工作
+        String userDir = System.getProperty("user.dir");
+        this.store = new ServerStore(Paths.get(userDir, "data", "mcp-servers.json").toString());
+    }
+
+    @PreDestroy
+    public void destroy() {
+        logger.info("应用关闭，释放所有 MCP 连接...");
+        closeAll();
     }
 
     /**
@@ -70,13 +84,13 @@ public class McpClient {
         try {
             mcpClient = connectWithStreamableHttp(serverUrl);
             initResult = mcpClient.initialize();
-            System.out.println("[MCP Client] 使用 Streamable HTTP 传输连接成功");
+            logger.info("[MCP Client] 使用 Streamable HTTP 传输连接成功");
         } catch (Exception streamableException) {
-            System.out.println("[MCP Client] Streamable HTTP 连接失败（" + streamableException.getMessage() + "），尝试 SSE 传输...");
+            logger.info("[MCP Client] Streamable HTTP 连接失败（{}），尝试 SSE 传输...", streamableException.getMessage());
             try {
                 mcpClient = connectWithSse(serverUrl);
                 initResult = mcpClient.initialize();
-                System.out.println("[MCP Client] 使用 SSE 传输连接成功");
+                logger.info("[MCP Client] 使用 SSE 传输连接成功");
             } catch (Exception sseException) {
                 throw new RuntimeException("两种传输协议均连接失败。"
                         + " Streamable HTTP: " + streamableException.getMessage()
@@ -86,7 +100,7 @@ public class McpClient {
 
         String serverName = initResult.serverInfo().name();
         String serverVersion = initResult.serverInfo().version();
-        System.out.println("[MCP Client] 已连接到: " + serverName + " v" + serverVersion);
+        logger.info("[MCP Client] 已连接到: {} v{}", serverName, serverVersion);
 
         SyncMcpToolCallbackProvider toolCallbackProvider = SyncMcpToolCallbackProvider.builder()
                 .mcpClients(mcpClient)
@@ -99,12 +113,11 @@ public class McpClient {
         for (int i = 0; i < rawCallbacks.length; i++) {
             ToolCallback original = rawCallbacks[i];
             toolNames.add(original.getToolDefinition().name());
-            System.out.println("  - " + original.getToolDefinition().name()
-                    + ": " + original.getToolDefinition().description());
+            logger.info("  - {}: {}", original.getToolDefinition().name(), original.getToolDefinition().description());
             // 包装日志代理
             toolCallbacks[i] = wrapWithLogging(original);
         }
-        System.out.println("[MCP Client] 发现 " + toolCallbacks.length + " 个远程工具");
+        logger.info("[MCP Client] 发现 {} 个远程工具", toolCallbacks.length);
 
         clientsByUrl.put(serverUrl, mcpClient);
         toolCallbacksByUrl.put(serverUrl, Arrays.asList(toolCallbacks));
@@ -186,13 +199,13 @@ public class McpClient {
             try {
                 client.closeGracefully();
             } catch (Exception exception) {
-                System.err.println("[MCP Client] 关闭连接时出错: " + exception.getMessage());
+                logger.error("[MCP Client] 关闭连接时出错: {}", exception.getMessage());
             }
         }
 
         store.remove(serverUrl);
 
-        System.out.println("[MCP Client] 已断开并移除: " + serverUrl);
+        logger.info("[MCP Client] 已断开并移除: {}", serverUrl);
         return removedCallbacks != null ? removedCallbacks : List.of();
     }
 
@@ -233,13 +246,13 @@ public class McpClient {
             try {
                 client.closeGracefully();
             } catch (Exception exception) {
-                System.err.println("[MCP Client] 关闭连接时出错: " + exception.getMessage());
+                logger.error("[MCP Client] 关闭连接时出错: {}", exception.getMessage());
             }
         }
         clientsByUrl.clear();
         toolCallbacksByUrl.clear();
         serverInfoByUrl.clear();
-        System.out.println("[MCP Client] 所有连接已关闭");
+        logger.info("[MCP Client] 所有连接已关闭");
     }
 
     /**
@@ -256,30 +269,19 @@ public class McpClient {
             public String call(String toolInput) {
                 String toolName = original.getToolDefinition().name();
 
-                System.out.println("\n╔══════════════════════════════════════════");
-                System.out.println("║ 🌐 [MCP Tool Call] " + toolName);
-                System.out.println("║ 📥 入参: " + truncate(toolInput, 200));
-                System.out.println("╚══════════════════════════════════════════");
+                logger.info("[MCP Tool Call] {} | 入参: {}", toolName, truncate(toolInput, 200));
 
                 long startTime = System.currentTimeMillis();
                 try {
                     String result = original.call(toolInput);
                     long elapsed = System.currentTimeMillis() - startTime;
 
-                    System.out.println("\n╔══════════════════════════════════════════");
-                    System.out.println("║ ✅ [MCP Tool Result] " + toolName);
-                    System.out.println("║ ⏱️ 耗时: " + elapsed + "ms");
-                    System.out.println("║ 📤 结果: " + truncate(result, 300));
-                    System.out.println("╚══════════════════════════════════════════\n");
+                    logger.info("[MCP Tool Result] {} | 耗时: {}ms | 结果: {}", toolName, elapsed, truncate(result, 300));
                     return result;
                 } catch (Exception exception) {
                     long elapsed = System.currentTimeMillis() - startTime;
 
-                    System.err.println("\n╔══════════════════════════════════════════");
-                    System.err.println("║ ❌ [MCP Tool Error] " + toolName);
-                    System.err.println("║ ⏱️ 耗时: " + elapsed + "ms");
-                    System.err.println("║ 💥 异常: " + exception.getMessage());
-                    System.err.println("╚══════════════════════════════════════════\n");
+                    logger.error("[MCP Tool Error] {} | 耗时: {}ms | 异常: {}", toolName, elapsed, exception.getMessage());
                     throw exception;
                 }
             }
@@ -337,7 +339,7 @@ public class McpClient {
                 if (parentDir != null && !Files.exists(parentDir)) {
                     Files.createDirectories(parentDir);
                 }
-                String content = JSON.toJSONString(urls, SerializerFeature.PrettyFormat);
+                String content = JSON.toJSONString(urls, JSONWriter.Feature.PrettyFormat);
                 Files.writeString(storePath, content, StandardCharsets.UTF_8);
             } catch (IOException exception) {
                 System.err.println("[McpServerStore] 写入持久化文件失败: " + exception.getMessage());

@@ -1,8 +1,13 @@
 package com.zoujuexian.aiagentdemo.core;
 
+import com.zoujuexian.aiagentdemo.config.AgentProperties;
+import com.zoujuexian.aiagentdemo.core.guardrail.InputGuardrail;
+import com.zoujuexian.aiagentdemo.core.guardrail.OutputGuardrail;
 import com.zoujuexian.aiagentdemo.service.tool.InnerTool;
 import com.zoujuexian.aiagentdemo.service.rag.RagService;
 import jakarta.annotation.Resource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -25,7 +30,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * AI Agent 核心编排器
@@ -34,12 +39,16 @@ import java.util.concurrent.ConcurrentHashMap;
  * 职责单一：管理对话记忆 + 工具回调 + 模型调用，不关心工具来源。
  */
 @Component
-public class AgentCore implements InitializingBean , ApplicationContextAware {
+public class AgentCore implements InitializingBean, ApplicationContextAware {
 
-    /** 按 sessionId 隔离的对话记忆，支持多客户端并发 */
-    private final Map<String, ChatMemory> sessionMemories = new ConcurrentHashMap<>();
+    private static final Logger logger = LoggerFactory.getLogger(AgentCore.class);
+
+    /** 使用 SessionManager 管理会话记忆（支持自动过期清理） */
+    @Resource
+    private SessionManager sessionManager;
+
     private String systemPromptText;
-    private final List<ToolCallback> toolCallbacks = new ArrayList<>();
+    private final List<ToolCallback> toolCallbacks = new CopyOnWriteArrayList<>();
     private ApplicationContext applicationContext;
 
     @Resource
@@ -54,6 +63,15 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
     @Resource
     private SubAgentManager subAgentManager;
 
+    @Resource
+    private AgentProperties agentProperties;
+
+    @Resource
+    private InputGuardrail inputGuardrail;
+
+    @Resource
+    private OutputGuardrail outputGuardrail;
+
     /** 模型推理参数 */
     private Double temperature = 0.7;
     private Integer maxTokens = 2048;
@@ -61,11 +79,10 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        this.systemPromptText = "你是一个智能助手，具备知识库检索（RAG）、工具调用（Function Calling）、"
-                + "技能执行（Skill）、MCP 协议连接和子代理（SubAgent）等能力。\n"
-                + "当遇到需要独立上下文记忆的复杂子任务时，你可以创建 SubAgent 来处理。\n"
-                + "请根据用户的问题，合理选择使用工具或直接回答。\n"
-                + "回答时请简洁准确，必要时引用工具返回的结果。";
+        this.systemPromptText = agentProperties.getSystemPrompt();
+        this.temperature = agentProperties.getTemperature();
+        this.maxTokens = agentProperties.getMaxTokens();
+        this.topP = agentProperties.getTopP();
 
         // 初始化 SubAgentManager，共享 ChatClient
         subAgentManager.setChatClient(chatClient);
@@ -77,17 +94,17 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
             try {
                 allCallbacks.addAll(tool.loadToolCallbacks());
             } catch (Exception exception) {
-                System.err.println("[Tool] " + tool.getClass().getSimpleName() + " 加载失败: " + exception.getMessage());
+                logger.error("[Tool] {} 加载失败: {}", tool.getClass().getSimpleName(), exception.getMessage());
             }
         }
 
         registerToolCallbacks(allCallbacks);
 
-        System.out.println("\n========================================");
-        System.out.println("  AI Agent 已就绪（已加载 " + allCallbacks.size() + " 个工具）");
-        System.out.println("  HTTP API: POST /api/chat");
-        System.out.println("  MCP 管理: GET/POST /api/mcp/*");
-        System.out.println("========================================\n");
+        logger.info("\n========================================");
+        logger.info("  AI Agent 已就绪（已加载 {} 个工具）", allCallbacks.size());
+        logger.info("  HTTP API: POST /api/chat");
+        logger.info("  MCP 管理: GET/POST /api/mcp/*");
+        logger.info("========================================\n");
     }
 
     /**
@@ -114,10 +131,10 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
                 .openAiApi(openAiApi)
                 .defaultOptions(chatOptions)
                 .build();
-        ;
+
         this.chatClient = ChatClient.builder(chatModel).build();
         subAgentManager.setChatClient(this.chatClient);
-        System.out.println("[模型切换] 已切换到: " + modelConfig);
+        logger.info("[模型切换] 已切换到: {}", modelConfig);
     }
 
     /**
@@ -145,11 +162,9 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
      * 获取或创建指定 sessionId 的对话记忆
      */
     private ChatMemory getOrCreateMemory(String sessionId) {
-        return sessionMemories.computeIfAbsent(sessionId, id -> {
-            ChatMemory memory = ChatMemory.forMainAgent(chatClient);
-            memory.setSystemPrompt(systemPromptText);
-            return memory;
-        });
+        ChatMemory memory = sessionManager.getOrCreate(sessionId, chatClient);
+        memory.setSystemPrompt(systemPromptText);
+        return memory;
     }
 
     /**
@@ -157,8 +172,6 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
      */
     public void setSystemPrompt(String systemPrompt) {
         this.systemPromptText = systemPrompt;
-        // 同步更新所有已有会话的 system prompt
-        sessionMemories.values().forEach(memory -> memory.setSystemPrompt(systemPrompt));
     }
 
     /**
@@ -195,6 +208,12 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
      * @return 模型回复
      */
     public String chat(String sessionId, String userInput) {
+        // 0. 输入安全检查
+        InputGuardrail.GuardrailResult guardrailResult = inputGuardrail.check(userInput);
+        if (!guardrailResult.allowed()) {
+            return "输入安全检查未通过: " + String.join(", ", guardrailResult.violations());
+        }
+
         ChatMemory memory = getOrCreateMemory(sessionId);
 
         // 1. 意图识别
@@ -226,9 +245,12 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
 
         String response = requestSpec.call().content();
 
-        memory.addMessage(new AssistantMessage(response != null ? response : ""));
+        // 输出安全过滤
+        response = outputGuardrail.sanitize(response != null ? response : "");
 
-        return response != null ? response : "";
+        memory.addMessage(new AssistantMessage(response));
+
+        return response;
     }
 
     /**
@@ -254,6 +276,11 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
      * @return Reactor {@link Flux} 流，每个元素为一个文本片段（token），前端可实时订阅渲染
      */
     public Flux<String> chatStream(String sessionId, String userInput) {
+        // 0. 输入安全检查
+        InputGuardrail.GuardrailResult guardrailResult = inputGuardrail.check(userInput);
+        if (!guardrailResult.allowed()) {
+            return Flux.just("输入安全检查未通过: " + String.join(", ", guardrailResult.violations()));
+        }
         // ─────────────────────────────────────────────
         // 阶段 0：获取会话记忆
         // 根据 sessionId 从内存中获取或创建新的 ChatMemory 实例。
@@ -362,7 +389,7 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
                 })
                 // 流异常：打印错误日志，并保存空 AssistantMessage（保持消息轮次对齐）
                 .doOnError(error -> {
-                    System.err.println("[Stream] 流式对话异常: " + error.getMessage());
+                    logger.error("[Stream] 流式对话异常: {}", error.getMessage());
                     memory.addMessage(new AssistantMessage(""));
                 });
     }
@@ -373,10 +400,7 @@ public class AgentCore implements InitializingBean , ApplicationContextAware {
      * @param sessionId 会话 ID
      */
     public void clearMemory(String sessionId) {
-        ChatMemory memory = sessionMemories.remove(sessionId);
-        if (memory != null) {
-            memory.clear();
-        }
+        sessionManager.invalidate(sessionId);
     }
 
     @Override

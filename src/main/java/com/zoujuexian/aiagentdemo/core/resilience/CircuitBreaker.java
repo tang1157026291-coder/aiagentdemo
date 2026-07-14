@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.resilience;
+package com.zoujuexian.aiagentdemo.core.resilience;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +17,7 @@ public class CircuitBreaker {
     private final AtomicInteger failureCount = new AtomicInteger(0);
     private volatile long lastFailureTime = 0;
 
-    public <T> T execute(java.util.function.Supplier<T> operation, java.util.function.Supplier<T> fallback) {
+    public synchronized <T> T execute(java.util.function.Supplier<T> operation, java.util.function.Supplier<T> fallback) {
         if (state == CircuitState.OPEN) {
             if (System.currentTimeMillis() - lastFailureTime > RESET_TIMEOUT) {
                 state = CircuitState.HALF_OPEN;

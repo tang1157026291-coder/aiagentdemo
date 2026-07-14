@@ -1,16 +1,16 @@
-﻿package com.zoujuexian.aiagentdemo.service.external;
+package com.zoujuexian.aiagentdemo.service.external;
 
 import org.springframework.stereotype.Component;
 
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class McpNamespaceManager {
 
-    private final Map<String, String> namespaceToUrl = new HashMap<>();
+    private final Map<String, String> namespaceToUrl = new ConcurrentHashMap<>();
 
     public String qualifyToolName(String serverUrl, String toolName) {
         String namespace = extractNamespace(serverUrl);

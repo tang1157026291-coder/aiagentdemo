@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.agent;
+package com.zoujuexian.aiagentdemo.core.agent;
 
 import com.zoujuexian.aiagentdemo.core.SubAgent;
 import com.zoujuexian.aiagentdemo.core.SubAgentManager;
@@ -19,6 +19,18 @@ import java.util.concurrent.*;
 public class AgentOrchestrator {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentOrchestrator.class);
+
+    /** 共享线程池，避免每次调用创建新线程池 */
+    private final ExecutorService sharedExecutor = new ThreadPoolExecutor(
+            2, 5, 60L, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(50),
+            r -> {
+                Thread t = new Thread(r, "agent-orchestrator-" + UUID.randomUUID().toString().substring(0, 4));
+                t.setDaemon(true);
+                return t;
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
 
     @Resource
     private ChatClient chatClient;
@@ -70,11 +82,10 @@ public class AgentOrchestrator {
         List<AgentTask> tasks = taskDecomposer.decompose(originalQuestion);
         logger.info("任务分解完成，共 {} 个子任务", tasks.size());
 
-        ExecutorService executor = Executors.newFixedThreadPool(Math.min(tasks.size(), 5));
         List<Future<AgentResult>> futures = new ArrayList<>();
 
         for (AgentTask task : tasks) {
-            futures.add(executor.submit(() -> {
+            futures.add(sharedExecutor.submit(() -> {
                 String agentName = generateAgentName(task.getName());
                 String agentRole = generateAgentRole(task.getName());
                 
@@ -99,12 +110,11 @@ public class AgentOrchestrator {
                 results.add(future.get(60, TimeUnit.SECONDS));
             } catch (Exception e) {
                 logger.error("子任务执行失败", e);
-                results.add(new AgentResult());
-                results.get(results.size() - 1).setErrorMessage(e.getMessage());
+                AgentResult errorResult = new AgentResult();
+                errorResult.setErrorMessage(e.getMessage());
+                results.add(errorResult);
             }
         }
-
-        executor.shutdown();
 
         String finalAnswer = resultAggregator.aggregate(originalQuestion, results);
         logger.info("多Agent并行执行完成");

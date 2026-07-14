@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core;
+package com.zoujuexian.aiagentdemo.core;
 
 import com.zoujuexian.aiagentdemo.config.MemoryProperties;
 import com.github.benmanes.caffeine.cache.Cache;
@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import jakarta.annotation.Resource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;

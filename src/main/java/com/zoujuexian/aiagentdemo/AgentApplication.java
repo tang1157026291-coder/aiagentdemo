@@ -5,6 +5,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * AI Agent 应用入口
@@ -20,6 +21,7 @@ import org.springframework.context.annotation.Bean;
  * @see ChatController HTTP 接口
  */
 @SpringBootApplication
+@EnableScheduling
 public class AgentApplication {
 
     @Bean(name = "chatClient")

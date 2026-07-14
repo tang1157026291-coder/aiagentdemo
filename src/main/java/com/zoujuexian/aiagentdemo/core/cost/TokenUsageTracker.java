@@ -1,4 +1,4 @@
-﻿package com.zoujuexian.aiagentdemo.core.cost;
+package com.zoujuexian.aiagentdemo.core.cost;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,36 +44,55 @@ public class TokenUsageTracker {
         return sessionUsages.size();
     }
 
-    public record SessionUsage(
-            String sessionId,
-            LocalDateTime startTime,
-            Map<String, ModelUsage> modelUsages
-    ) {
+    public static class SessionUsage {
+        private final String sessionId;
+        private final LocalDateTime startTime;
+        private final Map<String, ModelUsage> modelUsages = new HashMap<>();
+
         public SessionUsage(String sessionId, LocalDateTime startTime) {
-            this(sessionId, startTime, new HashMap<>());
+            this.sessionId = sessionId;
+            this.startTime = startTime;
         }
 
         public void record(String model, int promptTokens, int completionTokens) {
             ModelUsage mu = modelUsages.computeIfAbsent(model, m -> new ModelUsage(m));
-            mu.promptTokens += promptTokens;
-            mu.completionTokens += completionTokens;
+            mu.addTokens(promptTokens, completionTokens);
         }
 
         public long getTotalUsage() {
             return modelUsages.values().stream()
-                    .mapToLong(mu -> mu.promptTokens + mu.completionTokens)
+                    .mapToLong(mu -> mu.getPromptTokens() + mu.getCompletionTokens())
                     .sum();
         }
 
         public UsageReport toReport() {
             return new UsageReport(sessionId, startTime, modelUsages);
         }
+
+        public String getSessionId() { return sessionId; }
+        public LocalDateTime getStartTime() { return startTime; }
+        public Map<String, ModelUsage> getModelUsages() { return modelUsages; }
     }
 
-    public record ModelUsage(String model, int promptTokens, int completionTokens) {
+    public static class ModelUsage {
+        private final String model;
+        private int promptTokens;
+        private int completionTokens;
+
         public ModelUsage(String model) {
-            this(model, 0, 0);
+            this.model = model;
+            this.promptTokens = 0;
+            this.completionTokens = 0;
         }
+
+        public void addTokens(int prompt, int completion) {
+            this.promptTokens += prompt;
+            this.completionTokens += completion;
+        }
+
+        public String getModel() { return model; }
+        public int getPromptTokens() { return promptTokens; }
+        public int getCompletionTokens() { return completionTokens; }
     }
 
     public record UsageReport(
@@ -83,7 +102,7 @@ public class TokenUsageTracker {
     ) {
         public long getTotalTokens() {
             return modelUsages.values().stream()
-                    .mapToLong(mu -> mu.promptTokens() + mu.completionTokens())
+                    .mapToLong(mu -> mu.getPromptTokens() + mu.getCompletionTokens())
                     .sum();
         }
     }

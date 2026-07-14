@@ -5,7 +5,7 @@ import com.zoujuexian.aiagentdemo.core.ModelConfig;
 import com.zoujuexian.aiagentdemo.api.controller.dto.ChatResponse;
 import com.zoujuexian.aiagentdemo.api.controller.dto.McpConnectRequest;
 import com.zoujuexian.aiagentdemo.api.controller.dto.SwitchModelRequest;
-import com.zoujuexian.aiagentdemo.service.extrenal.McpClient;
+import com.zoujuexian.aiagentdemo.service.external.McpClient;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -98,6 +98,17 @@ public class ManagerController {
                     ? ((Number) request.get("maxTokens")).intValue() : null;
             Double topP = request.containsKey("topP")
                     ? ((Number) request.get("topP")).doubleValue() : null;
+
+            // 参数范围校验
+            if (temperature != null && (temperature < 0.0 || temperature > 2.0)) {
+                return ChatResponse.fail("temperature 必须在 0.0~2.0 之间");
+            }
+            if (maxTokens != null && maxTokens <= 0) {
+                return ChatResponse.fail("maxTokens 必须为正整数");
+            }
+            if (topP != null && (topP < 0.0 || topP > 1.0)) {
+                return ChatResponse.fail("topP 必须在 0.0~1.0 之间");
+            }
 
             agentCore.setModelParams(temperature, maxTokens, topP);
 
